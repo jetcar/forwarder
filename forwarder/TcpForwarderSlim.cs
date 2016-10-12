@@ -23,7 +23,7 @@ namespace forwarder
                 //    continue;
                 if (ipAddress.ToString().Contains(":"))
                     continue;
-                localSockets.Add(new IPEndPoint(ipAddress, 0));
+                ///localSockets.Add(new IPEndPoint(ipAddress, 0));
             }
             while (true)
             {
@@ -56,12 +56,25 @@ namespace forwarder
                     if (responce.Contains("HTTP/1.1 403 URLBlocked"))
                     {
                         state.SourceSocket.Close();
+                        Console.WriteLine("HTTP/1.1 403 URLBlocked");
                         return;
                     }
                     //Console.WriteLine(responce);
 
                     var status = "";
                     if (responce.StartsWith("HTTP"))
+                    {
+                        status = responce.Split('\r')[0];
+                    }
+                    if (responce.StartsWith("GET"))
+                    {
+                        status = responce.Split('\r')[0];
+                    }
+                    if (responce.StartsWith("POST"))
+                    {
+                        status = responce.Split('\r')[0];
+                    }
+                    if (responce.StartsWith("CONNECT"))
                     {
                         status = responce.Split('\r')[0];
                     }
@@ -82,14 +95,14 @@ namespace forwarder
                                     if (line.Contains("Host:"))
                                     {
                                         socket.Connect(new DnsEndPoint(line.Replace("\nHost:", "").Replace(" ", ""), 80));
-                                        socket.Send(state.Buffer.Take(bytesRead).ToArray());
+                                        socket.Send(state.Buffer, bytesRead, SocketFlags.None);
                                         break;
                                     }
                                     if (line.Contains("CONNECT"))
                                     {
                                         var url = line.Replace("CONNECT", "").Replace(" ", "").Replace("HTTP/1.1", "");
                                         socket.Connect(new DnsEndPoint(url.Split(':')[0], Convert.ToInt32(url.Split(':')[1])));
-                                        socket.Send(state.Buffer.Take(bytesRead).ToArray());
+                                        socket.Send(state.Buffer, bytesRead, SocketFlags.None);
                                         break;
                                     }
                                 }
