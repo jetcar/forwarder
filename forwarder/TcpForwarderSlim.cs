@@ -79,7 +79,7 @@ namespace forwarder
 
                                                 if (socket.Connected)
                                                 {
-                                                    var innerState = new State(socket, state.SourceSocket, new List<IPEndPoint>(), state);
+                                                    var innerState = new State(socket, state.DestinationSocket, new List<IPEndPoint>(), state);
                                                     socket.Send(state.DestinationState.ByteRequest, state.DestinationState.BytesRead, SocketFlags.None);
                                                     socket.BeginReceive(innerState.Buffer, 0, innerState.Buffer.Length, 0, OnDataReceive,
                                                         innerState);
