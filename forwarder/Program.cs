@@ -11,7 +11,7 @@ namespace forwarder
     {
         private static void Main(string[] args)
         {
-            TcpForwarderSlim forwarderSlim = new TcpForwarderSlim();
+            TcpForwarderSlim forwarderSlim = new TcpForwarderSlim(new Action(() => { }));
             forwarderSlim.Start(new IPEndPoint(IPAddress.Any, 8090), new IPEndPoint(IPAddress.Parse("10.30.138.135"), 8090));
             Console.ReadLine();
         }

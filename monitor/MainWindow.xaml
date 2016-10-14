@@ -1,0 +1,31 @@
+﻿<Window x:Class="monitor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:monitor"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="350" Width="525"
+        DataContext="{Binding RelativeSource={RelativeSource Self}}">
+    <Grid>
+        <Grid.RowDefinitions>
+
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="*"></RowDefinition>
+        </Grid.RowDefinitions>
+        <TextBlock Text="{Binding Total}"></TextBlock>
+        <ListView Grid.Row="1" ItemsSource="{Binding Sockets}">
+            <ListView.ItemTemplate>
+                <DataTemplate DataType="local:SocketView">
+                    <WrapPanel>
+                        <TextBlock Text="handle: " />
+                        <TextBlock Text="{Binding Handle}" FontWeight="Bold" />
+                        <TextBlock Text=", " />
+                        <TextBlock Text="Request: " />
+                        <TextBlock Text="{Binding Request}" FontWeight="Bold" />
+                    </WrapPanel>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</Window>

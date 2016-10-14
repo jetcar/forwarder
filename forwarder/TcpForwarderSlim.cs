@@ -11,11 +11,25 @@ namespace forwarder
     public class TcpForwarderSlim
     {
         private readonly Socket _mainSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        public static List<Socket> Sockets = new List<Socket>();
+
+        public TcpForwarderSlim(Action syncSockets)
+        {
+            SyncSocket = syncSockets;
+        }
+
+        public TcpForwarderSlim(Action syncSockets, Action<IntPtr, string> updateRequest) : this(syncSockets)
+        {
+            this.updateRequest = updateRequest;
+        }
+
+        private Action SyncSocket;
+        private Action<IntPtr, string> updateRequest;
 
         public void Start(IPEndPoint local, IPEndPoint remote)
         {
             _mainSocket.Bind(local);
-            _mainSocket.Listen(10);
+            _mainSocket.Listen(100);
 
             var localSockets = new List<IPEndPoint>();
             foreach (var ipAddress in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
@@ -29,17 +43,20 @@ namespace forwarder
             while (true)
             {
                 var source = _mainSocket.Accept();
-                var destination = new TcpForwarderSlim();
-                var state = new State(source, destination._mainSocket, localSockets, null);
+                Sockets.Add(source);
+                var destination = new TcpForwarderSlim(SyncSocket);
+                Sockets.Add(destination._mainSocket);
+                SyncSocket.Invoke();
+                var state = new State(source, destination._mainSocket, localSockets, null, updateRequest);
                 destination._mainSocket.Bind(new IPEndPoint(IPAddress.Parse("10.94.136.231"), 0));
-                destination.Connect(remote, source, localSockets, state);
+                destination.Connect(remote, source, localSockets, state, updateRequest);
                 source.BeginReceive(state.Buffer, 0, state.Buffer.Length, 0, OnDataReceive, state);
             }
         }
 
-        private void Connect(EndPoint remoteEndpoint, Socket destination, List<IPEndPoint> local, State destinationstate)
+        private void Connect(EndPoint remoteEndpoint, Socket destination, List<IPEndPoint> local, State destinationstate, Action<IntPtr, string> request)
         {
-            var state = new State(_mainSocket, destination, local, destinationstate);
+            var state = new State(_mainSocket, destination, local, destinationstate, request);
             destinationstate.DestinationState = destinationstate;
             _mainSocket.Connect(remoteEndpoint);
             _mainSocket.BeginReceive(state.Buffer, 0, state.Buffer.Length, SocketFlags.None, OnDataReceive, state);
@@ -47,6 +64,7 @@ namespace forwarder
 
         private static void OnDataReceive(IAsyncResult result)
         {
+            Console.WriteLine("Sockets:" + Sockets.Count);
             var state = (State)result.AsyncState;
             try
             {
@@ -57,16 +75,21 @@ namespace forwarder
                 {
                     string responce = Encoding.UTF8.GetString(state.Buffer, 0, bytesRead);
 
-                    if (responce.Contains("HTTP/1.1 403 URLBlocked"))
+                    if (responce.Contains("HTTP/1.1 403")
+                        ||
+                        responce.Contains("HTTP/1.1 502")
+                        )
                     {
-                        //state.SourceSocket.Close();
-                        Console.WriteLine("HTTP/1.1 403 URLBlocked");
+                        state.SourceSocket.Close();
+                        Console.WriteLine("HTTP/1.1 403");
                         try
                         {
                             {
                                 foreach (var endPoint in state.Local)
                                 {
-                                    var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                                    var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp) { ReceiveTimeout = 100, SendTimeout = 100 };
+                                    Sockets.Add(socket);
+
                                     socket.Bind(endPoint);
                                     if (!socket.Connected)
                                     {
@@ -79,7 +102,7 @@ namespace forwarder
 
                                                 if (socket.Connected)
                                                 {
-                                                    var innerState = new State(socket, state.DestinationSocket, new List<IPEndPoint>(), state);
+                                                    var innerState = new State(socket, state.DestinationSocket, new List<IPEndPoint>(), state, null);
                                                     socket.Send(state.DestinationState.ByteRequest, state.DestinationState.BytesRead, SocketFlags.None);
                                                     socket.BeginReceive(innerState.Buffer, 0, innerState.Buffer.Length, 0, OnDataReceive,
                                                         innerState);
@@ -139,6 +162,10 @@ namespace forwarder
                     {
                         status = responce.Split('\r')[0];
                     }
+
+                    if (state.UpdateRequest != null)
+                        state.UpdateRequest.Invoke(state.SourceSocket.Handle, status);
+
                     Console.WriteLine("from:" + state.SourceSocket.LocalEndPoint + " to " +
                                       state.DestinationSocket.LocalEndPoint + " " + status);
                     state.DestinationSocket.Send(state.Buffer, bytesRead, SocketFlags.None);
@@ -156,6 +183,9 @@ namespace forwarder
 
                 state.DestinationSocket.Close();
                 state.SourceSocket.Close();
+                Sockets.Remove(state.DestinationSocket);
+                Sockets.Remove(state.SourceSocket);
+
                 //foreach (var socket in state.Local)
                 //{
                 //    socket.Close();
@@ -173,14 +203,16 @@ namespace forwarder
             public string StringRequest { get; set; }
             public int BytesRead { get; set; }
             public State DestinationState { get; set; }
+            public Action<IntPtr, string> UpdateRequest { get; set; }
 
-            public State(Socket source, Socket destination, List<IPEndPoint> local, State state)
+            public State(Socket source, Socket destination, List<IPEndPoint> local, State state, Action<IntPtr, string> request)
             {
                 SourceSocket = source;
                 DestinationSocket = destination;
                 Local = local;
                 Buffer = new byte[65536];
                 DestinationState = state;
+                UpdateRequest = request;
             }
         }
     }
