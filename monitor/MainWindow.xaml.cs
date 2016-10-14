@@ -34,7 +34,10 @@ namespace monitor
         {
             InitializeComponent();
 
-            TcpForwarderSlim forwarderSlim = new TcpForwarderSlim(SyncSockets, UpdateRequest);
+            TcpForwarderSlim forwarderSlim = new TcpForwarderSlim();
+
+            TcpForwarderSlim.SyncSocket = SyncSockets;
+            TcpForwarderSlim.UpdateRequest = UpdateRequest;
             new Thread(() =>
             {
                 forwarderSlim.Start(new IPEndPoint(IPAddress.Any, 8090),
@@ -50,11 +53,11 @@ namespace monitor
                 {
                     var socket = TcpForwarderSlim.Sockets[i];
                     if (Sockets.Count < i + 1)
-                        Sockets.Add(new SocketView() { Handle = socket.Handle, Socket = socket });
-                    else if (Sockets[i].Handle != socket.Handle)
+                        Sockets.Add(new SocketView() { Handle = socket.SourceSocket.Handle, Socket = socket.SourceSocket });
+                    else if (Sockets[i].Handle != socket.SourceSocket.Handle)
                     {
                         Sockets.RemoveAt(i);
-                        Sockets.Insert(i, new SocketView() { Handle = socket.Handle, Socket = socket });
+                        Sockets.Insert(i, new SocketView() { Handle = socket.SourceSocket.Handle, Socket = socket.SourceSocket });
                     }
                 }
                 while (Sockets.Count > TcpForwarderSlim.Sockets.Count)
