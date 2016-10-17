@@ -10,15 +10,15 @@ namespace forwarder
 {
     public class TcpForwarderSlim
     {
-        private readonly Socket _mainSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
         public static Action SyncSocket;
         public static Action<IntPtr, string> UpdateRequest;
 
         public void Start(IPEndPoint local, IPEndPoint remote)
         {
-            _mainSocket.Bind(local);
-            _mainSocket.Listen(100);
+            Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
+            listener.Bind(local);
+            listener.Listen(100);
 
             var localSockets = new List<IPEndPoint>();
             foreach (var ipAddress in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
@@ -33,17 +33,17 @@ namespace forwarder
             {
                 try
                 {
-                    var source = _mainSocket.Accept();
-                    var destination = new TcpForwarderSlim();
+                    var client = listener.Accept();
+                    var destination = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                     if (SyncSocket != null)
                         SyncSocket.Invoke();
-                    var state = new State(source, destination._mainSocket, null);
+                    var state = new State(client, destination, null);
 
                     SocketAsyncEventArgs readsocket = new SocketAsyncEventArgs();
                     readsocket.Completed += new EventHandler<SocketAsyncEventArgs>(ReadLocal);
                     readsocket.SetBuffer(state.Buffer, 0, state.Buffer.Length);
                     readsocket.UserToken = state;
-                    source.ReceiveAsync(readsocket);
+                    client.ReceiveAsync(readsocket);
                 }
                 catch (Exception e)
                 {
