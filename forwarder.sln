@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "forwarder", "forwarder\forw
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "monitor", "monitor\monitor.csproj", "{7D124917-B0BB-47B3-97FD-93A8AE57B4FC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "proxy", "proxy\proxy.csproj", "{366240FE-BC21-49A5-9547-93EC6806E9DF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{7D124917-B0BB-47B3-97FD-93A8AE57B4FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7D124917-B0BB-47B3-97FD-93A8AE57B4FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7D124917-B0BB-47B3-97FD-93A8AE57B4FC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{366240FE-BC21-49A5-9547-93EC6806E9DF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{366240FE-BC21-49A5-9547-93EC6806E9DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{366240FE-BC21-49A5-9547-93EC6806E9DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{366240FE-BC21-49A5-9547-93EC6806E9DF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
