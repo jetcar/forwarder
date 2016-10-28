@@ -50,7 +50,7 @@ namespace forwarder
                 if (BytesTransferred == 0)
                 {
                     state.SourceSocket.Close();
-                    state.DestinationSocket.Close();
+                    //state.DestinationSocket.Close();
                 }
                 else
                 {
@@ -105,7 +105,7 @@ namespace forwarder
             catch (Exception e)
             {
                 state.SourceSocket.Close();
-                state.DestinationSocket.Close();
+                //state.DestinationSocket.Close();
             }
         }
 
@@ -119,7 +119,7 @@ namespace forwarder
                 if (BytesTransferred == 0)
                 {
                     state.SourceSocket.Close();
-                    state.DestinationSocket.Close();
+                    // state.DestinationSocket.Close();
                 }
                 else
                 {
@@ -163,7 +163,7 @@ namespace forwarder
             catch (Exception)
             {
                 state.SourceSocket.Close();
-                state.DestinationSocket.Close();
+                // state.DestinationSocket.Close();
             }
         }
 

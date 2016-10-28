@@ -129,7 +129,7 @@ namespace proxy
                 else
                 {
                     state.SourceSocket.Close();
-                    state.DestinationSocket.Close();
+                    //state.DestinationSocket.Close();
                 }
             }
             catch (Exception e)
@@ -155,13 +155,13 @@ namespace proxy
                 else
                 {
                     state.SourceSocket.Close();
-                    state.DestinationSocket.Close();
+                    //state.DestinationSocket.Close();
                 }
             }
             catch (Exception)
             {
                 state.SourceSocket.Close();
-                state.DestinationSocket.Close();
+                //state.DestinationSocket.Close();
             }
         }
     }
