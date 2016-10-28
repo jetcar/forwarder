@@ -4,3 +4,7 @@
 /monitor/obj/Debug
 /proxy/obj/Debug
 /proxy/bin/Debug
+/mitm proxy/bin/Debug
+/mitm proxy/obj/Debug
+/packages/BouncyCastle.1.8.1
+/mitm proxy/*.user
