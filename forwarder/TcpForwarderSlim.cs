@@ -18,7 +18,7 @@ namespace forwarder
             Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
             listener.Bind(local);
-            listener.Listen(1);
+            listener.Listen(10);
 
             while (true)
             {
@@ -164,78 +164,6 @@ namespace forwarder
             {
                 state.SourceSocket.Close();
                 state.DestinationSocket.Close();
-            }
-        }
-
-        private static void OnDataReceiveSendBack(IAsyncResult result)
-        {
-            var state = (State)result.AsyncState;
-            try
-            {
-                int bytesRead;
-                SocketError err;
-                bytesRead = state.SourceSocket.EndReceive(result, out err);
-
-                if (bytesRead > 0)
-                {
-                    string responce = Encoding.UTF8.GetString(state.Buffer, 0, bytesRead);
-
-                    if (responce.Contains("HTTP/1.1 403")
-                        ||
-                        responce.Contains("HTTP/1.1 502")
-                        )
-                    {
-                        state.SourceSocket.Close();
-                        Console.WriteLine("HTTP/1.1 403");
-
-                        return;
-                    }
-
-                    var status = "";
-                    if (responce.StartsWith("HTTP"))
-                    {
-                        status = responce.Split('\r')[0];
-                    }
-                    if (responce.StartsWith("GET"))
-                    {
-                        status = responce.Split('\r')[0];
-                    }
-                    if (responce.StartsWith("POST"))
-                    {
-                        status = responce.Split('\r')[0];
-                    }
-                    if (responce.StartsWith("CONNECT"))
-                    {
-                        status = responce.Split('\r')[0];
-                    }
-                    if (UpdateRequest != null)
-                        UpdateRequest.Invoke(state.SourceSocket.Handle, status);
-
-                    Console.WriteLine("from:" + state.SourceSocket.LocalEndPoint + " to " +
-                                      state.DestinationSocket.LocalEndPoint + " " + status);
-                    //state.DestinationSocket.BeginSend(state.Buffer, 0, bytesRead, SocketFlags.None, BeginSend, state);
-                    state.DestinationSocket.Send(state.Buffer, bytesRead, SocketFlags.None);
-                    state.ByteRequest = state.Buffer;
-                    state.BytesRead = bytesRead;
-                    state.StringRequest = responce;
-
-                    state.SourceSocket.BeginReceive(state.Buffer, 0, state.Buffer.Length, 0, OnDataReceiveSendBack,
-                        state);
-                }
-            }
-            catch (Exception Ex)
-            {
-                Console.WriteLine(Ex.Message);
-
-                state.DestinationSocket.Close();
-                state.SourceSocket.Close();
-                if (SyncSocket != null)
-                    SyncSocket.Invoke();
-
-                //foreach (var socket in state.Local)
-                //{
-                //    socket.Close();
-                //}
             }
         }
 

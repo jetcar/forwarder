@@ -18,7 +18,7 @@ namespace proxy
             Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
             listener.Bind(new IPEndPoint(IPAddress.Any, 8091));
-            listener.Listen(1);
+            listener.Listen(10);
 
             while (true)
             {
@@ -50,7 +50,6 @@ namespace proxy
                     //SocketError.Success indicates that the last operation on the underlying socket succeeded
                     {
                         string responce = Encoding.UTF8.GetString(state.Buffer, 0, bytesRead);
-                        Console.Write(responce);
                         var status = "";
                         if (responce.StartsWith("HTTP"))
                         {
@@ -74,114 +73,68 @@ namespace proxy
                         state.ByteRequest = state.Buffer;
                         state.BytesRead = bytesRead;
                         state.StringRequest = responce;
-                        if (state.SSLStream == null)
+                        if (!state.DestinationSocket.Connected || status.Contains("GET ") || status.Contains("CONNECT "))
                         {
-                            if (!state.DestinationSocket.Connected || status.Contains("GET ") || status.Contains("CONNECT "))
+                            state.DestinationSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream,
+                                ProtocolType.Tcp);
+                            state.DestinationSocket.Bind(new IPEndPoint(IPAddress.Parse("172.20.10.2"), 0));
+
+                            var lines = state.StringRequest.Split('\r');
+                            foreach (var line in lines)
                             {
-                                state.DestinationSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream,
-                                    ProtocolType.Tcp);
-                                state.DestinationSocket.Bind(new IPEndPoint(IPAddress.Parse("172.20.10.2"), 0));
-
-                                var lines = state.StringRequest.Split('\r');
-                                foreach (var line in lines)
+                                if (line.Contains("Host:"))
                                 {
-                                    if (line.Contains("Host:"))
+                                    state.DestinationSocket.Connect(
+                                        new DnsEndPoint(line.Replace("\nHost:", "").Replace(" ", ""), 80));
+
+                                    if (state.DestinationSocket.Connected)
                                     {
-                                        state.DestinationSocket.Connect(
-                                            new DnsEndPoint(line.Replace("\nHost:", "").Replace(" ", ""), 80));
+                                        var remotestate = new State(state.DestinationSocket, state.SourceSocket, state);
 
-                                        if (state.DestinationSocket.Connected)
-                                        {
-                                            var remotestate = new State(state.DestinationSocket, state.SourceSocket, state);
-
-                                            state.DestinationSocket.BeginReceive(remotestate.Buffer, 0, remotestate.Buffer.Length,
-                                SocketFlags.None, ReadRemote, remotestate);
-                                        }
-                                        break;
+                                        state.DestinationSocket.BeginReceive(remotestate.Buffer, 0, remotestate.Buffer.Length,
+                            SocketFlags.None, ReadRemote, remotestate);
                                     }
-                                    if (line.Contains("CONNECT")) //not really needed now
+                                    break;
+                                }
+                                if (line.Contains("CONNECT")) //not really needed now
+                                {
+                                    var url = line.Replace("CONNECT", "").Replace(" ", "").Replace("HTTP/1.1", "");
+                                    state.DestinationSocket.Connect(new DnsEndPoint(url.Split(':')[0],
+                                        Convert.ToInt32(url.Split(':')[1])));
+
+                                    if (state.DestinationSocket.Connected)
                                     {
-                                        var url = line.Replace("CONNECT", "").Replace(" ", "").Replace("HTTP/1.1", "");
-                                        state.DestinationSocket.Connect(new DnsEndPoint(url.Split(':')[0],
-                                            Convert.ToInt32(url.Split(':')[1])));
+                                        //no encryption
+                                        var remotestate = new State(state.DestinationSocket, state.SourceSocket, state);
+                                        state.SourceSocket.Send(Encoding.ASCII.GetBytes("HTTP/1.0 200 Connection established\r\n\r\n"));
 
-                                        if (state.DestinationSocket.Connected)
-                                        {
-                                            //state.DestinationSocket.Send(state.Buffer, bytesRead, SocketFlags.None);
+                                        state.DestinationSocket.BeginReceive(remotestate.Buffer, 0, remotestate.Buffer.Length,
+                            SocketFlags.None, ReadRemote, remotestate);
 
-                                            var sslStream = new SslStream(new NetworkStream(state.DestinationSocket));
-                                            //sslStream.AuthenticateAsClient(url.Split(':')[0]);
+                                        state.SourceSocket.BeginReceive(state.Buffer, 0, state.Buffer.Length,
+     SocketFlags.None, ReadLocal, state);
 
-                                            //var remoteSsl = new State(state.DestinationSocket, state.SourceSocket, state);
-                                            //remoteSsl.SSLStream = sslStream;
-                                            state.SSLStream = sslStream;
-                                            //state.DestinationState = remoteSsl;
-                                            //state.DestinationState.SSLStream.BeginRead(state.DestinationState.Buffer, 0,
-                                            //    state.DestinationState.Buffer.Length, OnDataReceive, state.DestinationState);
-
-                                            //state.SourceSocket.Send(Encoding.ASCII.GetBytes("HTTP/1.0 200 Connection established\r\n\r\n"));
-                                            //state.SourceSocket.BeginReceive(state.Buffer, 0, state.Buffer.Length, SocketFlags.None, ReadLocal, state);
-
-                                            //sslStream.Write(state.Buffer, 0, bytesRead);
-
-                                            //no encryption
-                                            var remotestate = new State(state.DestinationSocket, state.SourceSocket, state);
-                                            state.SourceSocket.Send(Encoding.ASCII.GetBytes("HTTP/1.0 200 Connection established\r\n\r\n"));
-
-                                            state.DestinationSocket.BeginReceive(remotestate.Buffer, 0, remotestate.Buffer.Length,
-                                SocketFlags.None, ReadRemote, remotestate);
-
-                                            state.SourceSocket.BeginReceive(state.Buffer, 0, state.Buffer.Length,
-         SocketFlags.None, ReadLocal, state);
-
-                                            return;
-                                        }
-                                        break;
+                                        return;
                                     }
+                                    break;
                                 }
                             }
                         }
-                        //if (state.SSLStream == null)
-                        state.DestinationSocket.Send(state.Buffer, bytesRead, SocketFlags.None);
-                        //else
-                        //{
-                        //    state.SSLStream.Write(state.Buffer, 0, bytesRead);
-                        //    state.DestinationState.SSLStream.BeginRead(state.DestinationState.Buffer, 0,
-                        //        state.DestinationState.Buffer.Length, OnDataReceive, state.DestinationState);
-                        //}
 
+                        state.DestinationSocket.Send(state.Buffer, bytesRead, SocketFlags.None);
                         state.SourceSocket.BeginReceive(state.Buffer, 0, state.Buffer.Length,
                              SocketFlags.None, ReadLocal, state);
                     }
                 }
                 else
                 {
-                    //state.SourceSocket.Close();
+                    state.SourceSocket.Close();
+                    state.DestinationSocket.Close();
                 }
             }
             catch (Exception e)
             {
                 state.SourceSocket.Close();
-            }
-        }
-
-        private static void OnDataReceive(IAsyncResult ar)
-        {
-            State state = ar.AsyncState as State;
-
-            try
-            {
-                int bytesread = state.SSLStream.EndRead(ar);
-                if (bytesread > 0)
-                {
-                    string responce = Encoding.UTF8.GetString(state.Buffer, 0, bytesread);
-
-                    state.DestinationSocket.Send(state.Buffer, bytesread, SocketFlags.None);
-                }
-                state.SSLStream.BeginRead(state.Buffer, 0, state.Buffer.Length, OnDataReceive, state);
-            }
-            catch (Exception e)
-            {
             }
         }
 
@@ -194,36 +147,15 @@ namespace proxy
 
                 if (bytesRead > 0)
                 {
-                    //SocketError.Success indicates that the last operation on the underlying socket succeeded
-                    {
-                        string responce = Encoding.UTF8.GetString(state.Buffer, 0, bytesRead);
-                        Console.WriteLine(responce);
-                        var status = "";
-                        if (responce.StartsWith("HTTP"))
-                        {
-                            status = responce.Split('\r')[0];
-                        }
-                        if (responce.StartsWith("GET"))
-                        {
-                            status = responce.Split('\r')[0];
-                        }
-                        if (responce.StartsWith("POST"))
-                        {
-                            status = responce.Split('\r')[0];
-                        }
-                        if (responce.StartsWith("CONNECT"))
-                        {
-                            status = responce.Split('\r')[0];
-                        }
-                        state.ByteRequest = state.Buffer;
-                        state.BytesRead = bytesRead;
-                        state.StringRequest = responce;
+                    state.DestinationSocket.Send(state.Buffer, bytesRead, SocketFlags.None);
 
-                        state.DestinationSocket.Send(state.Buffer, bytesRead, SocketFlags.None);
-
-                        var io = state.SourceSocket.BeginReceive(state.Buffer, 0, state.Buffer.Length,
-                            SocketFlags.None, ReadRemote, state);
-                    }
+                    var io = state.SourceSocket.BeginReceive(state.Buffer, 0, state.Buffer.Length,
+                        SocketFlags.None, ReadRemote, state);
+                }
+                else
+                {
+                    state.SourceSocket.Close();
+                    state.DestinationSocket.Close();
                 }
             }
             catch (Exception)
@@ -236,7 +168,6 @@ namespace proxy
 
     public class State
     {
-        public SslStream SSLStream { get; set; }
         public Socket SourceSocket { get; private set; }
         public Socket DestinationSocket { get; set; }
         public byte[] Buffer { get; private set; }
